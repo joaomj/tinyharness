@@ -16,6 +16,26 @@ server sessions.
 The product is for personal use. It favors speed, low resource use, simple
 setup, clear limits, and user control instead of a broad feature set.
 
+## Foundational Philosophy
+
+All product and design choices must align with three foundations:
+
+- **Minimal core:** The harness core contains only the mechanisms required to
+  run, control, extend, and inspect the agent safely and reliably. A feature
+  stays outside the core when an extension boundary can support it.
+- **Easy extension:** Narrow and stable boundaries let the user add, replace,
+  or remove providers, tools, interfaces, storage, policies, and agent behavior
+  without changing the harness core.
+- **Maximum determinism:** Deterministic state and controls surround the
+  non-deterministic model. The harness enforces every machine-checkable rule at
+  an explicit boundary. It records behavior that requires model judgment as
+  best effort and makes the result inspectable.
+
+The complete product includes the server, clients, and optional capabilities.
+A mandatory product requirement does not mean that its implementation belongs
+in the harness core. A new core feature needs evidence that an extension cannot
+provide it safely, reliably, and with sufficient control.
+
 ## Problem
 
 Current coding agents often assume that the user works from one computer.
@@ -35,7 +55,7 @@ The user needs one coding agent that:
 - Runs well on a low-cost private server.
 - Keeps detailed evidence of agent behavior.
 - Applies clear limits to memory, storage, output, and background work.
-- Supports optional features without adding them to the core product.
+- Supports optional features without adding them to the harness core.
 
 ## Users And Context
 
@@ -71,13 +91,16 @@ and results.
 The server remains responsive over long periods. Stored data and inactive
 features do not cause unbounded resource growth.
 
-The product follows these principles:
+The product also follows these supporting principles:
 
 - **Fast:** Connecting to the agent does not start unnecessary work.
 - **Bounded:** Every stored or queued resource has a default limit.
 - **Persistent:** Work continues when an interface disconnects.
 - **Reachable:** The user can work from a computer or iPhone.
 - **Inspectable:** The user can review what the agent did and why.
+- **Collaborative:** The agent states its plan, reports progress, and accepts
+  corrections during active work.
+- **Enforced:** Core guarantees do not depend only on model prompts.
 - **Modular:** Optional features remain outside the core.
 - **Private:** Access is restricted to the owner by default.
 
@@ -103,6 +126,57 @@ The server orders all input and events.
 Only one agent turn runs in a session at a time. New user input must have a
 clear result. It can correct active work, wait as a follow-up, or stop the
 active turn.
+
+### Working Agreement And Progress
+
+Model output is non-deterministic. Skills, system prompts, and reminder prompts
+can guide model behavior, but they cannot provide a product guarantee by
+themselves.
+
+Before substantial work, the product must obtain and record a structured
+working agreement that states:
+
+- Its understanding of the user goal.
+- The planned work stages.
+- Why the plan is suitable.
+- Decisions that the user must make.
+
+The model can propose this agreement, but the harness owns the agreement state.
+The harness must not allow substantial tool work until it records a valid
+agreement. The user can approve or correct the agreement. The user can require
+approval before the harness permits substantial tool work.
+
+The harness must store accepted user instructions and corrections as active
+session state. It must keep the exact user text visible until the work completes
+or the user replaces or withdraws it. Model context for active work must include
+this state.
+
+Prompts must tell the model to explain a conflict, risk, or proposed change.
+The harness must enforce machine-checkable instructions at tool and effect
+boundaries. It must reject a conflicting effect and report the reason. Semantic
+instructions can require model judgment, so the product cannot guarantee their
+correct interpretation. The trace must make the model input and resulting
+behavior available for review.
+
+The recorded plan must split substantial work into steps that produce observable
+results. The harness owns the progress schedule. It must deliver a progress
+event after each recorded step. Each update must state:
+
+- The completed step.
+- The result of that step.
+- The next step and why it is necessary.
+
+Active work must not remain silent longer than the configured maximum period.
+If a step is still active, the update must state its current status and what the
+agent is waiting for or doing next. If the model does not provide an update, the
+harness must generate a factual status from the run, plan, and tool state. It
+must identify that status as harness-generated.
+
+The harness must record a change to the plan, scope, risk, or expected result.
+It must present the change before it permits the next protected effect. The user
+can correct, pause, or stop work from a connected interface. The product must
+offer a progress mode that lets the user receive step-level updates and closely
+direct active work.
 
 ### Telegram Attachment
 
@@ -132,8 +206,11 @@ server session.
 2. The user selects a workspace.
 3. The user starts or resumes a server session.
 4. The user sends a coding task.
-5. The terminal shows detailed progress, tool activity, changes, and results.
-6. The user reviews and approves sensitive actions when required.
+5. The agent presents its working agreement for substantial work.
+6. The terminal shows step results, next steps, tool activity, changes, and
+   results.
+7. The user corrects or redirects active work when necessary.
+8. The user reviews and approves sensitive actions when required.
 
 ### Continue From An iPhone
 
@@ -142,7 +219,7 @@ server session.
 3. The user attaches Telegram to one server session.
 4. Telegram shows a concise current-state summary.
 5. The user sends prompts, corrections, approvals, or stop requests.
-6. Telegram shows important progress and the final result.
+6. Telegram shows concise step results, next steps, and the final result.
 
 The terminal does not need to close before this flow starts.
 
@@ -179,7 +256,9 @@ The terminal is the complete interface. It must support:
 - Workspace selection.
 - Session creation, listing, resume, and closure.
 - Prompt and follow-up input.
+- Working-agreement review and correction.
 - Streamed agent responses.
+- Step-level progress and next-step reports.
 - Detailed tool activity.
 - Command output.
 - Complete change review.
@@ -199,10 +278,11 @@ Telegram is a concise mobile companion. It must support:
 - Session listing.
 - Explicit session attachment and detachment.
 - Prompt and follow-up input for an attached session.
+- Working-agreement review and correction.
 - Correction and cancellation.
 - Approval and rejection.
 - Questions that require user input.
-- Concise progress and result summaries.
+- Concise step results, next steps, and completion summaries.
 - On-demand session status.
 - Delivery of large details as files when necessary.
 
@@ -214,9 +294,9 @@ Telegram must avoid routine tool noise. It must give priority to:
 - Failures.
 - Completion results.
 
-## Core Product Requirements
+## MVP Product Requirements
 
-The core product must provide:
+The complete MVP product must provide:
 
 - A long-running remote agent.
 - Multiple workspaces.
@@ -229,6 +309,12 @@ The core product must provide:
 - Reliable cancellation and process cleanup.
 - Workspace access boundaries.
 - Token, cost, and provider-cache reporting when available.
+- A working agreement before substantial work.
+- Mandatory progress reports during substantial work.
+- Active correction, pause, and cancellation from connected interfaces.
+- Deterministic gates for working agreements, progress schedules, approvals,
+  cancellations, and machine-checkable policies.
+- Durable active-instruction, plan, and progress state.
 - Detailed append-only raw traces.
 - Default storage, memory, output, and work limits.
 - A supported way to add optional capabilities.
@@ -253,6 +339,8 @@ A raw trace must record, when available:
 - File changes.
 - Approval requests and decisions.
 - Corrections, cancellations, and retries.
+- Working agreements, plan changes, and progress reports.
+- Policy checks, rejected effects, and the source of each progress report.
 - Token and cost data.
 - Provider-cache reads and writes.
 - Model and tool timing.
@@ -274,6 +362,7 @@ Trace storage must be bounded by default. The product must provide:
 - A maximum total trace size.
 - A maximum size for one event.
 - Clear truncation records for oversized content.
+- Clear compaction records for content reduced before a model request.
 - Automatic removal of the oldest eligible closed sessions.
 - Protection for sessions that the user wants to keep.
 - Trace export before manual removal.
@@ -286,7 +375,7 @@ measurement on the target server before release.
 ## Modularity Requirements
 
 Skills, memory systems, decision notes, subagents, and workflow systems are not
-part of the core product.
+part of the harness core.
 
 The core must let the user add these features as optional capabilities. When an
 optional capability is absent or disabled, it must:
@@ -298,6 +387,16 @@ optional capability is absent or disabled, it must:
 
 The product must not download or run optional capabilities without an explicit
 user action.
+
+Skills and prompt files can guide model behavior. They must not be the only
+mechanism for a core product guarantee. Optional hooks can add policies, but
+mandatory lifecycle, access, approval, and progress controls must remain active
+without them.
+
+The core must provide small, deterministic enforcement boundaries instead of a
+large catalog of built-in preferences. Configuration and optional capabilities
+can define additional policies at these boundaries. A policy can constrain a
+machine-checkable effect, but it cannot make model reasoning deterministic.
 
 ## Security And Trust
 
@@ -313,6 +412,9 @@ The product must:
 - Show which server session receives each Telegram message.
 - Fail safely when approval expires or a mobile connection fails.
 - Avoid automatic installation of executable optional features.
+- Keep the default runtime dependency set small and inspectable.
+- Pin runtime dependencies to reviewed versions.
+- Avoid installation of executable code during normal operation.
 
 The default installation must not require Node.js or the npm package
 ecosystem.
@@ -331,6 +433,12 @@ The product must:
 - Release inactive in-memory state.
 - Limit concurrent agent work.
 - Limit model and tool output retained in memory.
+- Reduce an oversized tool result before the next model request when necessary.
+- Show when tool content is reduced and preserve the available original content
+  under the trace limits.
+- Preserve stable provider-context prefixes when practical to improve cache
+  reuse and reduce token cost.
+- Report cache reuse separately from total token use when provider data permits.
 - Report current storage use.
 - Continue to start and connect promptly as stored history grows within limits.
 
@@ -349,10 +457,20 @@ The MVP succeeds when:
 - Detachment stops Telegram updates without stopping the server session.
 - Work survives an interface disconnect and reconnect.
 - The user can approve, correct, and stop work from Telegram.
+- The product records a working agreement before substantial tool work.
+- The product reports each recorded step, its result, and the next step.
+- Active work does not exceed the configured maximum silent period.
+- A missing model update causes a harness-generated status report.
+- A protected effect cannot bypass its agreement, approval, or policy gate.
+- The user can redirect active work after a progress report.
 - Telegram remains concise during a tool-heavy task.
+- Large tool results do not cause unbounded model context growth.
+- The user can see when tool content is reduced before a model request.
 - The user can inspect and export the complete available raw trace.
 - Trace limits prevent unbounded storage growth.
 - Disabled optional capabilities consume no ongoing resources.
+- The user can add or remove an optional capability without changing the
+  harness core.
 - The product operates within the measured limits of the reference server.
 
 Before release, the project must define measurable targets for:
@@ -363,10 +481,17 @@ Before release, the project must define measurable targets for:
 - Maximum default trace storage.
 - Default trace retention age.
 - Recovery behavior after a service restart.
+- The maximum silent period during active work.
 
 ## Constraints
 
 - Personal use comes before team features.
+- Every feature must identify whether it belongs to the harness core, the
+  complete product, or an optional capability.
+- A machine-checkable product rule must use deterministic enforcement instead
+  of prompt compliance alone.
+- A behavior that depends on model judgment must be identified as best effort
+  and remain inspectable.
 - Performance and low memory use have the highest priority.
 - Portability has the second priority.
 - Setup must require little user work.
@@ -376,6 +501,8 @@ Before release, the project must define measurable targets for:
 - Optional features must not make the core larger or less reliable when they
   are disabled.
 - Stored data must remain inspectable and removable by the user.
+- Accepted user instructions must remain visible and correctable during active
+  work.
 
 ## Risks And Assumptions
 
@@ -405,6 +532,23 @@ and explicit user installation reduce this risk.
 
 Providers report streaming, token use, cost, and cache data differently. The
 product can only show data that the provider makes available.
+
+### Progress Volume
+
+Frequent updates can create interface noise. Concise step reports and a
+user-selected progress mode reduce this risk without hiding active work.
+
+### Model Non-Determinism
+
+The model can ignore, misunderstand, or inconsistently apply an instruction.
+Prompt repetition cannot remove this risk. Durable instruction state, visible
+plans, deterministic effect gates, and complete traces reduce the risk. They do
+not guarantee correct model judgment for semantic instructions.
+
+### Tool Result Compaction
+
+Compaction can remove details that later work needs. Visible compaction records,
+bounded raw traces, and access to available original content reduce this risk.
 
 ### Low-Cost Server Targets
 
@@ -443,6 +587,17 @@ The MVP does not include:
 - Define the default behavior for new input while an agent turn is active.
 - Define the default trace age and storage limits.
 - Define the reference server and measurable performance targets.
+- Define the minimum harness-core boundary.
 - Decide which optional capability interface is necessary in the MVP.
+- Decide whether optional capabilities need passive events, intercepting hooks,
+  or both.
+- Define the protected effect boundaries and the machine-checkable policy
+  format.
 - Decide whether Model Context Protocol support is part of the MVP.
+- Define the progress modes and the default maximum silent period.
+- Decide whether the terminal interface is a command-line interface, a minimal
+  terminal user interface, or a combination of both.
+- Define whether a future optional capability can propose inspectable and
+  reversible changes to skills, instructions, or configuration with user
+  approval.
 - Select the product name.
